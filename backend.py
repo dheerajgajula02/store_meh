@@ -1,21 +1,26 @@
 from flask import Flask, jsonify, request
 import pyrebase
 import json
+import werkzeug
+import os
+import shutil
+
 
 firebase_config = {
-    "apiKey": "AIzaSyDqa0cnCF_jMO7bnkOBoHDUVd4w-zarZqM",
-    "authDomain": "fir-course-72a1f.firebaseapp.com",
-    "projectId": "fir-course-72a1f",
-    "storageBucket": "fir-course-72a1f.appspot.com",
-    "messagingSenderId": "713176253381",
-    "appId": "1:713176253381:web:b25bca43ea8043680f41ac",
-    "measurementId": "G-435F9VKV90",
-    "databaseURL": "https://fir-course-72a1f-default-rtdb.firebaseio.com/"
+    "apiKey": "AIzaSyBGzjwvhJoq3kz9tgkvFGd10p2bg-ZX_hI",
+    "authDomain": "storemeh-7ff88.firebaseapp.com",
+    "projectId": "storemeh-7ff88",
+    "storageBucket": "storemeh-7ff88.appspot.com",
+    "messagingSenderId": "229911645323",
+    "appId": "1:229911645323:web:901cf0acdfb6c9dead188e",
+    "measurementId": "G-NYK67LP1N2",
+    "databaseURL":"gs://storemeh-7ff88.appspot.com"
 }
 
 firebase = pyrebase.initialize_app(firebase_config)
 
 auth = firebase.auth()
+storage = firebase.storage()
 
 app = Flask(__name__)
 
@@ -75,9 +80,73 @@ def autheticate():
         "message":message
     })
 
+@app.route("/download", methods=["GET"])
+def downlaod():
+    body = request.get_json(force=True)
+    email = body['email']
+    document = body['document']
+    cloud_name = email+"/"+document
+    storage.child(cloud_name).download(path="test_folder/download", filename="test_folder/download/download_x.jpg")
+
+    return jsonify({
+        "message":"downloaded_successfully"
+    })
+    
+
+@app.route('/upload', methods=['POST','UPLOAD'])
+def upload():
+    filename=""
+    cloud_name =""
+    user_name=""
+    if request.method=="UPLOAD":
+        document = request.files['document']
+        filename = werkzeug.utils.secure_filename(document.filename)
+        document.save("./uploaded_files/"+filename)
+    if request.method=="POST":
+        body = request.get_json(force=True)
+        cloud_name= body['file_name']
+        user_name = body['email']
+    storage.child(user_name+'/'+cloud_name).put("./uploaded_files/"+filename)     
+    
+
+    print(filename)
+    return jsonify({
+        "message":"saving successful",
+        "file_name":str(filename),
+        "docuemtn":str(document),
+        "form_data":body['first_name']
+    })
+
+@app.route("/upload_file", methods=['POST'])
+def upload_file():
+    document = request.files['document']
+    document_name = werkzeug.utils.secure_filename(document.filename)
+    print(document_name)
+    document.save("./uploaded_files/"+document_name)
+    return jsonify({
+        "message":"document uploaded successfully"
+    })
+
+@app.route("/file_name", methods=['POST'])
+def file_name():
+    body= request.get_json(force=True)
+    email = body['email']
+    cloud_file_name = body['file_name']
+    cloud_name= email+"/"+cloud_file_name
+    lst = os.listdir("uploaded_files/")
+    file_name = lst[0]
+    local_filename = "uploaded_files/"+file_name
+    storage.child(cloud_name).put(local_filename)
+    shutil.rmtree("uploaded_files/")
+    os.mkdir("uploaded_files/")
+
+    return jsonify({
+        "message":"uploaded successfully"
+    })
 
 
-        
+    
+
 
 @app.route('/hello', methods=['GET'])
 def home():
